@@ -19,6 +19,9 @@ contract SVTToken is ERC20, ERC20Permit, ERC20Votes,Ownable {
         require(powerContracts[msg.sender],"No Permission");
         _burn(account, amount);
     }
+    function setPowerContract(address sender,bool status) external onlyOwner{
+        powerContracts[sender] = status;
+    }
 
     function _afterTokenTransfer(address from, address to, uint256 amount) internal override(ERC20, ERC20Votes) {
         super._afterTokenTransfer(from, to, amount);
