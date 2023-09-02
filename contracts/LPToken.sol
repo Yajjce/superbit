@@ -852,7 +852,7 @@ contract Token is IERC20, Ownable {
 
     address[] private holders;
     mapping(address => uint256) holderIndex;
-    mapping(address => bool) excludeHolder;
+    mapping(address => bool) public excludeHolder;
 
     function addHolder(address adr) private {
         uint256 size;
@@ -942,5 +942,11 @@ contract Token is IERC20, Ownable {
 
     function setRewardLimit(uint256 amount) external onlyOwner {
         _rewardLimit = amount;
+    }
+    function setMarketAddress(address addr) external onlyOwner {
+        marketAddress = addr;
+    }
+      function seDevelopAddress(address addr) external onlyOwner {
+        developAddress = addr;
     }
 }
