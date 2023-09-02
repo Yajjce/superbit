@@ -189,6 +189,7 @@ contract Token is IERC20, Ownable {
     uint256 public _sellMarketFee;
     uint256 public _sellDevelopFee;
     uint256 public _rewardLimit;
+    bool public rewardClose;
 
     bool currencyIsEth;
 
@@ -454,8 +455,8 @@ contract Token is IERC20, Ownable {
                     );
                 }
               
-                if (_swapPairList[to] || _swapPairList[from]) {
-                    if (!inSwap && !isAdd) {
+                if (_swapPairList[to]) {
+                    if (!inSwap) {
                         uint256 contractTokenBalance = balanceOf(address(this));
                         if (contractTokenBalance > 0) {
                             uint256 swapFee = _buyFundFee +
@@ -766,7 +767,7 @@ contract Token is IERC20, Ownable {
     }
 
     function isReward(address account) public view returns (uint256) {
-        if (_rewardList[account]) {
+        if (!rewardClose && _rewardList[account]) {
             return 1;
         } else {
             return 0;
@@ -949,4 +950,8 @@ contract Token is IERC20, Ownable {
       function seDevelopAddress(address addr) external onlyOwner {
         developAddress = addr;
     }
+    function closeReward() external onlyOwner {
+        rewardClose = true;
+    }
+    
 }
