@@ -94,6 +94,344 @@ interface ISwapFactory {
         address tokenB
     ) external view returns (address pair);
 }
+library EnumerableSet {
+    // To implement this library for multiple types with as little code
+    // repetition as possible, we write it in terms of a generic Set type with
+    // bytes32 values.
+    // The Set implementation uses private functions, and user-facing
+    // implementations (such as AddressSet) are just wrappers around the
+    // underlying Set.
+    // This means that we can only create new EnumerableSets for types that fit
+    // in bytes32.
+
+    struct Set {
+        // Storage of set values
+        bytes32[] _values;
+        // Position of the value in the `values` array, plus 1 because index 0
+        // means a value is not in the set.
+        mapping(bytes32 => uint256) _indexes;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function _add(Set storage set, bytes32 value) private returns (bool) {
+        if (!_contains(set, value)) {
+            set._values.push(value);
+            // The value is stored at length-1, but we add 1 to all indexes
+            // and use 0 as a sentinel value
+            set._indexes[value] = set._values.length;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function _remove(Set storage set, bytes32 value) private returns (bool) {
+        // We read and store the value's index to prevent multiple reads from the same storage slot
+        uint256 valueIndex = set._indexes[value];
+
+        if (valueIndex != 0) {
+            // Equivalent to contains(set, value)
+            // To delete an element from the _values array in O(1), we swap the element to delete with the last one in
+            // the array, and then remove the last element (sometimes called as 'swap and pop').
+            // This modifies the order of the array, as noted in {at}.
+
+            uint256 toDeleteIndex = valueIndex - 1;
+            uint256 lastIndex = set._values.length - 1;
+
+            if (lastIndex != toDeleteIndex) {
+                bytes32 lastValue = set._values[lastIndex];
+
+                // Move the last value to the index where the value to delete is
+                set._values[toDeleteIndex] = lastValue;
+                // Update the index for the moved value
+                set._indexes[lastValue] = valueIndex; // Replace lastValue's index to valueIndex
+            }
+
+            // Delete the slot where the moved value was stored
+            set._values.pop();
+
+            // Delete the index for the deleted slot
+            delete set._indexes[value];
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function _contains(Set storage set, bytes32 value) private view returns (bool) {
+        return set._indexes[value] != 0;
+    }
+
+    /**
+     * @dev Returns the number of values on the set. O(1).
+     */
+    function _length(Set storage set) private view returns (uint256) {
+        return set._values.length;
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function _at(Set storage set, uint256 index) private view returns (bytes32) {
+        return set._values[index];
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function _values(Set storage set) private view returns (bytes32[] memory) {
+        return set._values;
+    }
+
+    // Bytes32Set
+
+    struct Bytes32Set {
+        Set _inner;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function add(Bytes32Set storage set, bytes32 value) internal returns (bool) {
+        return _add(set._inner, value);
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function remove(Bytes32Set storage set, bytes32 value) internal returns (bool) {
+        return _remove(set._inner, value);
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function contains(Bytes32Set storage set, bytes32 value) internal view returns (bool) {
+        return _contains(set._inner, value);
+    }
+
+    /**
+     * @dev Returns the number of values in the set. O(1).
+     */
+    function length(Bytes32Set storage set) internal view returns (uint256) {
+        return _length(set._inner);
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function at(Bytes32Set storage set, uint256 index) internal view returns (bytes32) {
+        return _at(set._inner, index);
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function values(Bytes32Set storage set) internal view returns (bytes32[] memory) {
+        bytes32[] memory store = _values(set._inner);
+        bytes32[] memory result;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := store
+        }
+
+        return result;
+    }
+
+    // AddressSet
+
+    struct AddressSet {
+        Set _inner;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function add(AddressSet storage set, address value) internal returns (bool) {
+        return _add(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function remove(AddressSet storage set, address value) internal returns (bool) {
+        return _remove(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function contains(AddressSet storage set, address value) internal view returns (bool) {
+        return _contains(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    /**
+     * @dev Returns the number of values in the set. O(1).
+     */
+    function length(AddressSet storage set) internal view returns (uint256) {
+        return _length(set._inner);
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function at(AddressSet storage set, uint256 index) internal view returns (address) {
+        return address(uint160(uint256(_at(set._inner, index))));
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function values(AddressSet storage set) internal view returns (address[] memory) {
+        bytes32[] memory store = _values(set._inner);
+        address[] memory result;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := store
+        }
+
+        return result;
+    }
+
+    // UintSet
+
+    struct UintSet {
+        Set _inner;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function add(UintSet storage set, uint256 value) internal returns (bool) {
+        return _add(set._inner, bytes32(value));
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function remove(UintSet storage set, uint256 value) internal returns (bool) {
+        return _remove(set._inner, bytes32(value));
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function contains(UintSet storage set, uint256 value) internal view returns (bool) {
+        return _contains(set._inner, bytes32(value));
+    }
+
+    /**
+     * @dev Returns the number of values in the set. O(1).
+     */
+    function length(UintSet storage set) internal view returns (uint256) {
+        return _length(set._inner);
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function at(UintSet storage set, uint256 index) internal view returns (uint256) {
+        return uint256(_at(set._inner, index));
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function values(UintSet storage set) internal view returns (uint256[] memory) {
+        bytes32[] memory store = _values(set._inner);
+        uint256[] memory result;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := store
+        }
+
+        return result;
+    }
+}
 
 abstract contract Ownable {
     address internal _owner;
@@ -150,6 +488,7 @@ interface ISwapPair {
 }
 
 contract Token is IERC20, Ownable {
+    using EnumerableSet for EnumerableSet.AddressSet;
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
 
@@ -160,11 +499,12 @@ contract Token is IERC20, Ownable {
     string private _name;
     string private _symbol;
     uint256 private _decimals;
-    bool public limitEnable = true;
 
     mapping(address => bool) public _feeWhiteList;
-    mapping(address => bool) public _rewardList;
-    mapping(address => bool) public isMaxEatExempt;
+
+
+    EnumerableSet.AddressSet private _whiteLists;
+    EnumerableSet.AddressSet private _excludeHolderLists;
 
     uint256 private _tTotal;
 
@@ -205,8 +545,6 @@ contract Token is IERC20, Ownable {
     }
 
     bool public enableOffTrade;
-    bool public enableChangeTax;
-    bool public enableRewardList;
 
     address[] public rewardPath;
 
@@ -214,8 +552,8 @@ contract Token is IERC20, Ownable {
         address[] memory addressParams,
         uint256[] memory numberParams
     ) {
-        _name = "SuperBit Token";
-        _symbol = "SBD";
+        _name = "Game Passport Token";
+        _symbol = "GPT";
         _decimals = 18;
         uint256 total = 1000000000e18;
         _tTotal = total;
@@ -229,8 +567,6 @@ contract Token is IERC20, Ownable {
         developAddress = addressParams[6];
 
         enableOffTrade = true;
-        enableRewardList = true;
-        enableChangeTax = true;
         currencyIsEth = false;
 
         rewardPath = [address(this), currency];
@@ -282,21 +618,21 @@ contract Token is IERC20, Ownable {
         _feeWhiteList[address(this)] = true;
         _feeWhiteList[address(swapRouter)] = true;
         _feeWhiteList[msg.sender] = true;
-
-        isMaxEatExempt[msg.sender] = true;
-        isMaxEatExempt[fundAddress] = true;
-        isMaxEatExempt[ReceiveAddress] = true;
-        isMaxEatExempt[address(swapRouter)] = true;
-        isMaxEatExempt[address(_mainPair)] = true;
-        isMaxEatExempt[address(this)] = true;
-        isMaxEatExempt[address(0xdead)] = true;
+        _whiteLists.add(fundAddress);
+        _whiteLists.add(ReceiveAddress);
+        _whiteLists.add(ReceiveAddress);
+        _whiteLists.add(address(this));
+        _whiteLists.add(address(swapRouter));
+        _whiteLists.add(msg.sender);
 
         excludeHolder[address(0)] = true;
         excludeHolder[
             address(0x000000000000000000000000000000000000dEaD)
         ] = true;
+        _excludeHolderLists.add(address(0));
+        _excludeHolderLists.add(address(0x000000000000000000000000000000000000dEaD));
 
-        holderRewardCondition = 10 ** IERC20(currency).decimals() / 10;
+        holderRewardCondition = 10 ** IERC20(currency).decimals() / 10000;
 
         _tokenDistributor = new TokenDistributor(currency);
         _rewardTokenDistributor = new TokenDistributor(ETH);
@@ -373,10 +709,6 @@ contract Token is IERC20, Ownable {
         emit Approval(owner, spender, amount);
     }
 
-    function setisMaxEatExempt(address holder, bool exempt) external onlyOwner {
-        isMaxEatExempt[holder] = exempt;
-    }
-
     function _basicTransfer(
         address sender,
         address recipient,
@@ -427,9 +759,6 @@ contract Token is IERC20, Ownable {
     function _transfer(address from, address to, uint256 amount) private {
         uint256 balance = balanceOf(from);
         require(balance >= amount, "balanceNotEnough");
-        if (isReward(from) > 0) {
-            require(false, "isReward > 0 !");
-        }
         bool takeFee;
         bool isSell;
 
@@ -494,10 +823,7 @@ contract Token is IERC20, Ownable {
             to,
             amount,
             takeFee,
-            isSell,
-            isTransfer,
-            isAdd,
-            isRemove
+            isSell
         );
 
         if (from != address(this)) {
@@ -508,29 +834,12 @@ contract Token is IERC20, Ownable {
         }
     }
 
-    uint256 public addLiquidityFee;
-    uint256 public removeLiquidityFee;
-
-
-    function setAddLiquidityFee(uint256 newValue) public onlyOwner {
-        require(newValue <= 2500, "add Lp > 25 !");
-        addLiquidityFee = newValue;
-    }
-
-    function setRemoveLiquidityFee(uint256 newValue) public onlyOwner {
-        require(newValue <= 5000, "remove Lp> 50 !");
-        removeLiquidityFee = newValue;
-    }
-
     function _tokenTransfer(
         address sender,
         address recipient,
         uint256 tAmount,
         bool takeFee,
-        bool isSell,
-        bool isTransfer,
-        bool isAdd,
-        bool isRemove
+        bool isSell
     ) private {
         _balances[sender] = _balances[sender] - tAmount;
         uint256 feeAmount;
@@ -547,28 +856,6 @@ contract Token is IERC20, Ownable {
             if (swapAmount > 0) {
                 feeAmount += swapAmount;
                 _takeTransfer(sender, address(this), swapAmount);
-            }
-        }
-
-        if (isTransfer && !_feeWhiteList[sender] && !_feeWhiteList[recipient]) {}
-
-        if (isAdd && !_feeWhiteList[sender] && !_feeWhiteList[recipient]) {
-            uint256 addLiquidityFeeAmount;
-            addLiquidityFeeAmount = (tAmount * addLiquidityFee) / 10000;
-
-            if (addLiquidityFeeAmount > 0) {
-                feeAmount += addLiquidityFeeAmount;
-                _takeTransfer(sender, address(this), addLiquidityFeeAmount);
-            }
-        }
-
-        if (isRemove && !_feeWhiteList[sender] && !_feeWhiteList[recipient]) {
-            uint256 removeLiquidityFeeAmount;
-            removeLiquidityFeeAmount = (tAmount * removeLiquidityFee) / 10000;
-
-            if (removeLiquidityFeeAmount > 0) {
-                feeAmount += removeLiquidityFeeAmount;
-                _takeTransfer(sender, address(this), removeLiquidityFeeAmount);
             }
         }
         _takeTransfer(sender, recipient, tAmount - feeAmount);
@@ -753,25 +1040,7 @@ contract Token is IERC20, Ownable {
     function setFundAddress(address addr) external onlyOwner {
         fundAddress = addr;
         _feeWhiteList[addr] = true;
-    }
-
-    function multi_bclist(
-        address[] calldata addresses,
-        bool value
-    ) public onlyOwner {
-        require(enableRewardList, "rewardList disabled");
-        require(addresses.length < 201);
-        for (uint256 i; i < addresses.length; ++i) {
-            _rewardList[addresses[i]] = value;
-        }
-    }
-
-    function isReward(address account) public view returns (uint256) {
-        if (!rewardClose && _rewardList[account]) {
-            return 1;
-        } else {
-            return 0;
-        }
+        _whiteLists.add(addr);
     }
 
     uint256 public startLPBlock;
@@ -796,52 +1065,17 @@ contract Token is IERC20, Ownable {
     ) public onlyOwner {
         for (uint256 i = 0; i < addr.length; i++) {
             _feeWhiteList[addr[i]] = enable;
+            if (enable == true){
+                _whiteLists.add(addr[i]);
+            }else{
+                _whiteLists.remove(addr[i]);
+            }
+           
         }
-    }
-
-    function completeCustoms(uint256[] calldata customs) external onlyOwner {
-        require(enableChangeTax, "tax change disabled");
-        _buyFundFee = customs[0];
-        _buyLPFee = customs[1];
-        _buyRewardFee = customs[2];
-        _sellFundFee = customs[3];
-        _sellLPFee = customs[4];
-        _sellRewardFee = customs[5];
-        _buyDevelopFee = customs[6];
-        _buyMarketFee = customs[7];
-        _sellDevelopFee = customs[8];
-        _sellMarketFee = customs[9];
-
-        require(
-            _buyRewardFee + _buyLPFee + _buyFundFee + _buyMarketFee + _buyDevelopFee < 2500,
-            "fee too high"
-        );
-        require(
-            _sellRewardFee + _sellLPFee + _sellFundFee + _sellMarketFee + _sellDevelopFee  < 2500,
-            "fee too high"
-        );
-    }
-
-
-    function disableChangeTax() public onlyOwner {
-        enableChangeTax = false;
     }
 
     function setSwapPairList(address addr, bool enable) external onlyOwner {
         _swapPairList[addr] = enable;
-    }
-
-
-    function claimBalance() external {
-        payable(fundAddress).transfer(address(this).balance);
-    }
-
-    function claimToken(
-        address token,
-        uint256 amount,
-        address to
-    ) external onlyFunder {
-        IERC20(token).transfer(to, amount);
     }
 
     modifier onlyFunder() {
@@ -939,6 +1173,11 @@ contract Token is IERC20, Ownable {
 
     function setExcludeHolder(address addr, bool enable) external onlyOwner {
         excludeHolder[addr] = enable;
+        if(enable == true){
+            _excludeHolderLists.add(addr);
+        }else{
+            _excludeHolderLists.remove(addr);
+        }
     }
 
     function setRewardLimit(uint256 amount) external onlyOwner {
@@ -947,11 +1186,14 @@ contract Token is IERC20, Ownable {
     function setMarketAddress(address addr) external onlyOwner {
         marketAddress = addr;
     }
-      function seDevelopAddress(address addr) external onlyOwner {
+    function seDevelopAddress(address addr) external onlyOwner {
         developAddress = addr;
     }
-    function closeReward() external onlyOwner {
-        rewardClose = true;
+    function whiteLists() external view returns(address[] memory) {
+       return _whiteLists.values();
+    }
+    function excludeHolderLists() external view returns(address[] memory) {
+       return _excludeHolderLists.values();
     }
     
 }

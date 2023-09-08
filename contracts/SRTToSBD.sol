@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -44,14 +45,15 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
         // uint blockReward = intervalBlock.mul(userLock[msg.sender].amount).div(ONE_YEAR);
         return (block.number.sub(userLock[msg.sender].startBlock)).mul(blockReward);
     }
-    function claim() external nonReentrant{
+    function claim(uint256 claimAmount) external nonReentrant{
         uint amount = getClaimAmount();
+        require(claimAmount <= amount,"Not enough");
         require(userLock[msg.sender].amount>=amount,"Not enough quantity");
         require(SBDToken.balanceOf(address(this)) >= amount,"Insufficient quantity in the pool");
-        SBDToken.transfer(msg.sender, amount);
-        userLock[msg.sender].amount = userLock[msg.sender].amount.sub(amount);
-        SVTToken.burn(msg.sender,amount);
-        emit Claim(msg.sender,amount);
+        SBDToken.transfer(msg.sender, claimAmount);
+        userLock[msg.sender].amount = userLock[msg.sender].amount.sub(claimAmount);
+        SVTToken.burn(msg.sender,claimAmount);
+        emit Claim(msg.sender,claimAmount);
     }
 
 }
