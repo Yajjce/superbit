@@ -34,4 +34,7 @@ contract SVTToken is ERC20, ERC20Permit, ERC20Votes,Ownable {
     function _burn(address account, uint256 amount) internal override(ERC20, ERC20Votes) {
         super._burn(account, amount);
     }
+    function _transfer(address from, address to, uint256 amount) internal override {
+        revert("can not transfer");
+    }
 }

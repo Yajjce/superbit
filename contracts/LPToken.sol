@@ -618,12 +618,17 @@ contract Token is IERC20, Ownable {
         _feeWhiteList[address(this)] = true;
         _feeWhiteList[address(swapRouter)] = true;
         _feeWhiteList[msg.sender] = true;
+        _feeWhiteList[marketAddress] = true;
+        _feeWhiteList[developAddress] = true;
+
         _whiteLists.add(fundAddress);
         _whiteLists.add(ReceiveAddress);
         _whiteLists.add(ReceiveAddress);
         _whiteLists.add(address(this));
         _whiteLists.add(address(swapRouter));
         _whiteLists.add(msg.sender);
+        _whiteLists.add(marketAddress);
+        _whiteLists.add(developAddress);
 
         excludeHolder[address(0)] = true;
         excludeHolder[
@@ -783,7 +788,7 @@ contract Token is IERC20, Ownable {
                         "pausing"
                     );
                 }
-              
+
                 if (_swapPairList[to]) {
                     if (!inSwap) {
                         uint256 contractTokenBalance = balanceOf(address(this));
@@ -795,7 +800,7 @@ contract Token is IERC20, Ownable {
                                 _buyDevelopFee +
                                 _sellFundFee +
                                 _sellRewardFee +
-                                _sellMarketFee + 
+                                _sellMarketFee +
                                 _sellDevelopFee +
                                 _sellLPFee;
                             uint256 numTokensSellToFund = (amount * swapFee) /
@@ -1070,7 +1075,7 @@ contract Token is IERC20, Ownable {
             }else{
                 _whiteLists.remove(addr[i]);
             }
-           
+
         }
     }
 
@@ -1195,5 +1200,5 @@ contract Token is IERC20, Ownable {
     function excludeHolderLists() external view returns(address[] memory) {
        return _excludeHolderLists.values();
     }
-    
+
 }

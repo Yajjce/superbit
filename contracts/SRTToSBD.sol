@@ -20,6 +20,8 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
     mapping(address => lockDetail) public userLock;
     event Claim(address indexed _user,uint _amount);
     event Exchange(address indexed _user,uint _amount);
+    event Deposit(address indexed _user,address _token,uint _amount);
+    event Withdraw(address indexed _user,address _token,uint _amount);
     constructor(IERC20 _SRTToken, IERC20 _SBDToken,ISVT _SVTToken){
         SRTToken = _SRTToken;
         SBDToken = _SBDToken;
@@ -54,6 +56,14 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
         userLock[msg.sender].amount = userLock[msg.sender].amount.sub(claimAmount);
         SVTToken.burn(msg.sender,claimAmount);
         emit Claim(msg.sender,claimAmount);
+    }
+    function deposit(address token,uint256 amount) external onlyOwner {
+        TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
+        emit Deposit(msg.sender,token,amount);
+    }
+    function withdraw(address token,uint256 amount) external onlyOwner {
+        IERC20(token).transfer(msg.sender,amount);
+        emit Withdraw(msg.sender,token,amount);
     }
 
 }
