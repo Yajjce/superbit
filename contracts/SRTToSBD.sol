@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./lib/TransferHelper.sol";
 import "./interfaces/ISVT.sol";
+import "./interfaces/ISRT.sol";
 contract SRTToSBD is Ownable,ReentrancyGuard {
     using SafeMath for uint256;
     IERC20 SRTToken;
@@ -17,7 +18,8 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
     }
     uint public intervalBlock = 3; //arb 3 s
     uint constant ONE_YEAR =  31536000;
-    mapping(address => lockDetail) public userLock;
+    mapping(address => lockDetail[]) public userLock;
+    mapping(address => uint) public userLockAmount;
     event Claim(address indexed _user,uint _amount);
     event Exchange(address indexed _user,uint _amount);
     event Deposit(address indexed _user,address _token,uint _amount);
@@ -29,31 +31,35 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
     }
     function exchange(uint256 amount) external  nonReentrant{
         TransferHelper.safeTransferFrom(address(SRTToken), msg.sender, address(this), amount);
+        ISRT(address(SRTToken)).burn(amount);
         uint lockAmount = amount.mul(80).div(100);
         uint getAmount = amount.sub(lockAmount);
         SBDToken.transfer(msg.sender,getAmount);
         SVTToken.mint(msg.sender,lockAmount);
-        lockDetail storage detail = userLock[msg.sender];
-        if(detail.amount != 0) {
-            detail.amount = detail.amount.add(lockAmount);
-        }else{
-            detail.amount = lockAmount;
-            detail.startBlock = block.number;
-        }
+        lockDetail memory detail;
+        detail.amount = lockAmount;
+        detail.startBlock = block.number;
+        userLock[msg.sender].push(detail);
+        userLockAmount[msg.sender] += lockAmount;
         emit Exchange(msg.sender,amount);
     }
     function getClaimAmount() public view returns(uint) {
-        uint blockReward = userLock[msg.sender].amount.div(ONE_YEAR.div(intervalBlock));
-        // uint blockReward = intervalBlock.mul(userLock[msg.sender].amount).div(ONE_YEAR);
-        return (block.number.sub(userLock[msg.sender].startBlock)).mul(blockReward);
+        uint length = userLock[msg.sender].length;
+        uint allAmount = 0;
+        for(uint i=0;i< length; i++) {
+            uint blockReward = userLock[msg.sender][i].amount.div(ONE_YEAR.div(intervalBlock));
+            uint allReward = (block.number.sub(userLock[msg.sender][i].startBlock)).mul(blockReward);
+            allAmount+=allReward;
+        }
+        return allAmount;
     }
     function claim(uint256 claimAmount) external nonReentrant{
         uint amount = getClaimAmount();
         require(claimAmount <= amount,"Not enough");
-        require(userLock[msg.sender].amount>=amount,"Not enough quantity");
+        require(userLockAmount[msg.sender]>=amount,"Not enough quantity");
         require(SBDToken.balanceOf(address(this)) >= amount,"Insufficient quantity in the pool");
         SBDToken.transfer(msg.sender, claimAmount);
-        userLock[msg.sender].amount = userLock[msg.sender].amount.sub(claimAmount);
+        userLockAmount[msg.sender] = userLockAmount[msg.sender].sub(claimAmount);
         SVTToken.burn(msg.sender,claimAmount);
         emit Claim(msg.sender,claimAmount);
     }
