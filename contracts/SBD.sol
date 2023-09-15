@@ -552,8 +552,8 @@ contract Token is IERC20, Ownable {
         address[] memory addressParams,
         uint256[] memory numberParams
     ) {
-        _name = "Game Passport Token";
-        _symbol = "GPT";
+        _name = "SuperBit DAO Token";
+        _symbol = "SBD";
         _decimals = 18;
         uint256 total = 1000000000e18;
         _tTotal = total;
