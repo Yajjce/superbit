@@ -8,7 +8,10 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract SVTToken is ERC20, ERC20Permit, ERC20Votes,Ownable {
     using SafeMath for uint256;
     mapping(address => bool) public powerContracts;
-    constructor() ERC20("Super Vote Token", "SVT") ERC20Permit("SVT") {}
+    bool public launched;
+    constructor() ERC20("Super Vote Token", "SVT") ERC20Permit("SVT") {
+        launched = false;
+    }
 
     function mint(address account,uint256 amount) external {
         require(powerContracts[msg.sender],"No Permission");
@@ -22,7 +25,9 @@ contract SVTToken is ERC20, ERC20Permit, ERC20Votes,Ownable {
     function setPowerContract(address sender,bool status) external onlyOwner{
         powerContracts[sender] = status;
     }
-
+    function launch() external onlyOwner{
+        launched = !launched;
+    }
     function _afterTokenTransfer(address from, address to, uint256 amount) internal override(ERC20, ERC20Votes) {
         super._afterTokenTransfer(from, to, amount);
     }
@@ -35,6 +40,7 @@ contract SVTToken is ERC20, ERC20Permit, ERC20Votes,Ownable {
         super._burn(account, amount);
     }
     function _transfer(address from, address to, uint256 amount) internal override {
-        revert("can not transfer");
+        require(launched,"Transaction not opened");
+        super._transfer(from,to,amount);
     }
 }
