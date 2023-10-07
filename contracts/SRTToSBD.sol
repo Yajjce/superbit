@@ -18,10 +18,11 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
     }
     uint public intervalBlock = 3; //arb 3 s
     uint constant ONE_YEAR =  31536000;
+    uint public allLock;
     mapping(address => lockDetail[]) public userLock;
     mapping(address => uint) public userLockAmount;
-    event Claim(address indexed _user,uint _amount);
-    event Exchange(address indexed _user,uint _amount);
+    event Claim(address indexed _user,uint _amount,uint _burnSVT);
+    event Exchange(address indexed _user,uint _amount,uint _receiveSBD,uint _lockSBD,uint _receiveSVT);
     event Deposit(address indexed _user,address _token,uint _amount);
     event Withdraw(address indexed _user,address _token,uint _amount);
     constructor(IERC20 _SRTToken, IERC20 _SBDToken,ISVT _SVTToken){
@@ -41,7 +42,8 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
         detail.startBlock = block.number;
         userLock[msg.sender].push(detail);
         userLockAmount[msg.sender] += lockAmount;
-        emit Exchange(msg.sender,amount);
+        allLock = allLock.add(amount);
+        emit Exchange(msg.sender,amount,getAmount,lockAmount,lockAmount);
     }
     function getClaimAmount() public view returns(uint) {
         uint length = userLock[msg.sender].length;
@@ -60,8 +62,9 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
         require(SBDToken.balanceOf(address(this)) >= amount,"Insufficient quantity in the pool");
         SBDToken.transfer(msg.sender, claimAmount);
         userLockAmount[msg.sender] = userLockAmount[msg.sender].sub(claimAmount);
+        allLock = allLock.sub(claimAmount);
         SVTToken.burn(msg.sender,claimAmount);
-        emit Claim(msg.sender,claimAmount);
+        emit Claim(msg.sender,claimAmount,claimAmount);
     }
     function deposit(address token,uint256 amount) external onlyOwner {
         TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
