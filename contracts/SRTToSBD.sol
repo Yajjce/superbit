@@ -15,12 +15,13 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
     struct lockDetail{
         uint256 amount;
         uint256 startBlock;
+        uint256 extractedAmount;
+        uint256 endBlock;
     }
     uint public intervalBlock = 3; //arb 3 s
     uint constant ONE_YEAR =  31536000;
     uint public allLock;
     mapping(address => lockDetail[]) public userLock;
-    mapping(address => uint) public userLockAmount;
     event Claim(address indexed _user,uint _amount,uint _burnSVT);
     event Exchange(address indexed _user,uint _amount,uint _receiveSBD,uint _lockSBD,uint _receiveSVT);
     event Deposit(address indexed _user,address _token,uint _amount);
@@ -40,31 +41,77 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
         lockDetail memory detail;
         detail.amount = lockAmount;
         detail.startBlock = block.number;
+        detail.extractedAmount = 0;
+        detail.endBlock = block.number.add(blockPeriod());
         userLock[msg.sender].push(detail);
-        userLockAmount[msg.sender] += lockAmount;
-        allLock = allLock.add(amount);
+        allLock = allLock.add(lockAmount);
         emit Exchange(msg.sender,amount,getAmount,lockAmount,lockAmount);
     }
     function getClaimAmount() public view returns(uint) {
         uint length = userLock[msg.sender].length;
         uint allAmount = 0;
         for(uint i=0;i< length; i++) {
-            uint blockReward = userLock[msg.sender][i].amount.div(ONE_YEAR.div(intervalBlock));
-            uint allReward = (block.number.sub(userLock[msg.sender][i].startBlock)).mul(blockReward);
+            uint userblockReward = blockReward(userLock[msg.sender][i].amount);
+            uint allReward = (block.number.sub(userLock[msg.sender][i].startBlock)).mul(userblockReward);
             allAmount+=allReward;
         }
         return allAmount;
     }
+    function blockPeriod() public view returns (uint) {
+        return ONE_YEAR.div(intervalBlock);
+    }
+    function blockReward(uint amount) public view returns(uint){
+        if (amount == 0) {
+            return 0;
+        }
+        if (amount < blockPeriod()){
+            return amount;
+        }else{
+            return amount.div(blockPeriod());
+        }
+    }
     function claim(uint256 claimAmount) external nonReentrant{
         uint amount = getClaimAmount();
-        require(claimAmount <= amount,"Not enough");
-        require(userLockAmount[msg.sender]>=amount,"Not enough quantity");
+        uint transferAmount = claimAmount;
+        require(claimAmount <= amount && claimAmount > 0,"Not enough");
         require(SBDToken.balanceOf(address(this)) >= amount,"Insufficient quantity in the pool");
-        SBDToken.transfer(msg.sender, claimAmount);
-        userLockAmount[msg.sender] = userLockAmount[msg.sender].sub(claimAmount);
-        allLock = allLock.sub(claimAmount);
-        SVTToken.burn(msg.sender,claimAmount);
-        emit Claim(msg.sender,claimAmount,claimAmount);
+        lockDetail[] storage userItems = userLock[msg.sender];
+        uint length = userItems.length;
+        uint total;
+        uint allReward;
+        for(uint i=0;i< length; i++) {
+            if(userItems[i].amount <= userItems[i].extractedAmount){
+                continue;
+            }
+            uint userblockReward = blockReward(userItems[i].amount);
+            if(block.number > userItems[i].endBlock) {
+                 allReward = (userItems[i].endBlock.sub(userItems[i].startBlock)).mul(userblockReward);
+            }else{
+                 allReward = (block.number.sub(userItems[i].startBlock)).mul(userblockReward);
+            }
+            if (userItems[i].extractedAmount + allReward > userItems[i].amount ){
+                allReward = userItems[i].amount.sub(userItems[i].extractedAmount);
+            }
+            total = total.add(allReward);
+            userItems[i].extractedAmount += allReward;
+            if(total > claimAmount){
+                userItems[i].extractedAmount = userItems[i].extractedAmount.sub(total.sub(claimAmount));
+                break;
+            }
+           userItems[i].startBlock = block.number;
+        }
+        SBDToken.transfer(msg.sender, transferAmount);
+        allLock = allLock.sub(transferAmount);
+        SVTToken.burn(msg.sender,transferAmount);
+        emit Claim(msg.sender,transferAmount,transferAmount);
+    }
+    function getUserLockAmount() external view returns(uint){
+        uint length = userLock[msg.sender].length;
+        uint allAmount = 0;
+        for(uint i=0;i< length; i++) {
+            allAmount+=userLock[msg.sender][i].amount;
+        }
+        return allAmount;
     }
     function deposit(address token,uint256 amount) external onlyOwner {
         TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
