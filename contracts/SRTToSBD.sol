@@ -94,11 +94,11 @@ contract SRTToSBD is Ownable,ReentrancyGuard {
             }
             total = total.add(allReward);
             userItems[i].extractedAmount += allReward;
+            userItems[i].startBlock = block.number;
             if(total > claimAmount){
                 userItems[i].extractedAmount = userItems[i].extractedAmount.sub(total.sub(claimAmount));
                 break;
             }
-           userItems[i].startBlock = block.number;
         }
         SBDToken.transfer(msg.sender, transferAmount);
         allLock = allLock.sub(transferAmount);
