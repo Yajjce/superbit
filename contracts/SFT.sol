@@ -11,19 +11,19 @@ import "./interfaces/ISwapRouter.sol";
 import "./interfaces/ISwapFactory.sol";
 
 
-contract SRTToken is ERC20 ,Ownable{
+contract SFTToken is ERC20 ,Ownable{
     bool public launched;
     mapping(address => bool) public _swapPairList;
     mapping(address => bool) public whiteList;
     ISwapRouter public _swapRouter;
-    constructor(address receiver,address currency,address router) ERC20("SuperBit Reward Token", "SRT"){
+    constructor(address receiver,address currency,address router) ERC20("SuperBit Future Token", "SFT"){
         ISwapRouter swapRouter = ISwapRouter(router);
         launched = false;
         ISwapFactory swapFactory = ISwapFactory(swapRouter.factory());
         address swapPair = swapFactory.createPair(address(this), currency);
         _swapPairList[swapPair] = true;
         _swapRouter = swapRouter;
-        _mint(receiver,1800000000e18);
+        _mint(receiver,2100000000e18);
     }
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
@@ -31,7 +31,7 @@ contract SRTToken is ERC20 ,Ownable{
     function launch() external onlyOwner{
         launched = true;
     }
-    function setSwapPairList(address addr, bool enable) external onlyOwner {
+     function setSwapPairList(address addr, bool enable) external onlyOwner {
         _swapPairList[addr] = enable;
     }
     function setWhiteList(address addr, bool enable)  external onlyOwner {

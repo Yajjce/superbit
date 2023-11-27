@@ -493,7 +493,6 @@ contract Token is IERC20, Ownable {
     mapping(address => mapping(address => uint256)) private _allowances;
 
     address public fundAddress;
-    address public marketAddress;
     address public developAddress;
 
     string private _name;
@@ -521,12 +520,10 @@ contract Token is IERC20, Ownable {
     uint256 public _buyFundFee;
     uint256 public _buyLPFee;
     uint256 public _buyRewardFee;
-    uint256 public _buyMarketFee;
     uint256 public _buyDevelopFee;
     uint256 public _sellFundFee;
     uint256 public _sellLPFee;
     uint256 public _sellRewardFee;
-    uint256 public _sellMarketFee;
     uint256 public _sellDevelopFee;
     uint256 public _rewardLimit;
     bool public rewardClose;
@@ -555,7 +552,7 @@ contract Token is IERC20, Ownable {
         _name = "SuperBit DAO Token";
         _symbol = "SBD";
         _decimals = 18;
-        uint256 total = 1000000000e18;
+        uint256 total = 1800000000e18;
         _tTotal = total;
 
         fundAddress = addressParams[0];
@@ -563,8 +560,7 @@ contract Token is IERC20, Ownable {
         ISwapRouter swapRouter = ISwapRouter(addressParams[2]);
         address ReceiveAddress = addressParams[3];
         ETH = addressParams[4];
-        marketAddress = addressParams[5];
-        developAddress = addressParams[6];
+        developAddress = addressParams[5];
 
         enableOffTrade = true;
         currencyIsEth = false;
@@ -590,21 +586,19 @@ contract Token is IERC20, Ownable {
         _buyFundFee = numberParams[0];
         _buyLPFee = numberParams[1];
         _buyRewardFee = numberParams[2];
-        _buyMarketFee = numberParams[3];
-        _buyDevelopFee = numberParams[4];
+        _buyDevelopFee = numberParams[3];
 
-        _sellFundFee = numberParams[5];
-        _sellLPFee = numberParams[6];
-        _sellRewardFee = numberParams[7];
-        _sellMarketFee = numberParams[8];
-        _sellDevelopFee = numberParams[9];
+        _sellFundFee = numberParams[4];
+        _sellLPFee = numberParams[5];
+        _sellRewardFee = numberParams[6];
+        _sellDevelopFee = numberParams[7];
 
         require(
-            _buyFundFee + _buyLPFee + _buyRewardFee + _buyMarketFee + _buyDevelopFee < 2500,
+            _buyFundFee + _buyLPFee + _buyRewardFee  + _buyDevelopFee < 2500,
             "fee too high"
         );
         require(
-            _sellFundFee + _sellLPFee + _sellRewardFee + _sellMarketFee + _sellDevelopFee < 2500,
+            _sellFundFee + _sellLPFee + _sellRewardFee  + _sellDevelopFee < 2500,
             "fee too high"
         );
 
@@ -618,7 +612,6 @@ contract Token is IERC20, Ownable {
         _feeWhiteList[address(this)] = true;
         _feeWhiteList[address(swapRouter)] = true;
         _feeWhiteList[msg.sender] = true;
-        _feeWhiteList[marketAddress] = true;
         _feeWhiteList[developAddress] = true;
 
         _whiteLists.add(fundAddress);
@@ -627,7 +620,6 @@ contract Token is IERC20, Ownable {
         _whiteLists.add(address(this));
         _whiteLists.add(address(swapRouter));
         _whiteLists.add(msg.sender);
-        _whiteLists.add(marketAddress);
         _whiteLists.add(developAddress);
 
         excludeHolder[address(0)] = true;
@@ -796,11 +788,9 @@ contract Token is IERC20, Ownable {
                             uint256 swapFee = _buyFundFee +
                                 _buyRewardFee +
                                 _buyLPFee +
-                                _buyMarketFee +
                                 _buyDevelopFee +
                                 _sellFundFee +
                                 _sellRewardFee +
-                                _sellMarketFee +
                                 _sellDevelopFee +
                                 _sellLPFee;
                             uint256 numTokensSellToFund = (amount * swapFee) /
@@ -852,9 +842,9 @@ contract Token is IERC20, Ownable {
         if (takeFee) {
             uint256 swapFee;
             if (isSell) {
-                swapFee = _sellFundFee + _sellRewardFee + _sellLPFee + _sellMarketFee + _sellDevelopFee;
+                swapFee = _sellFundFee + _sellRewardFee + _sellLPFee  + _sellDevelopFee;
             } else {
-                swapFee = _buyFundFee + _buyLPFee + _buyRewardFee + _buyMarketFee + _buyDevelopFee;
+                swapFee = _buyFundFee + _buyLPFee + _buyRewardFee  + _buyDevelopFee;
             }
 
             uint256 swapAmount = (tAmount * swapFee) / 10000;
@@ -943,7 +933,6 @@ contract Token is IERC20, Ownable {
         }
 
         swapFee -= lpFee;
-        uint256 marketFee = _sellMarketFee + _buyMarketFee;
         uint256 developFee = _sellDevelopFee + _buyDevelopFee;
         uint256 fundFee = _sellFundFee + _buyFundFee;
 
@@ -953,7 +942,6 @@ contract Token is IERC20, Ownable {
         uint256 lpFist = 0;
         uint256 fundAmount = 0;
         uint256 incomeAmount = 0;
-        uint256 marketAmount = 0;
         uint256 developAmount = 0;
         if (currencyIsEth) {
             fistBalance = address(this).balance;
@@ -981,21 +969,13 @@ contract Token is IERC20, Ownable {
             fistBalance = FIST.balanceOf(address(_tokenDistributor));
             lpFist = (fistBalance * lpFee) / swapFee;
             incomeAmount = fistBalance - lpFist;
-            fundAmount = fundFee * incomeAmount / (marketFee + developFee + fundFee) ;
-            marketAmount = marketFee * incomeAmount / (marketFee + developFee + fundFee) ;
-            developAmount = developFee * incomeAmount / (marketFee + developFee + fundFee) ;
+            fundAmount = fundFee * incomeAmount / ( developFee + fundFee) ;
+            developAmount = developFee * incomeAmount / (developFee + fundFee) ;
             if (lpFist > 0) {
                 FIST.transferFrom(
                     address(_tokenDistributor),
                     address(this),
                     lpFist
-                );
-            }
-            if (marketAmount > 0) {
-                 FIST.transferFrom(
-                    address(_tokenDistributor),
-                    marketAddress,
-                    marketAmount
                 );
             }
              if (developAmount > 0) {
@@ -1188,9 +1168,7 @@ contract Token is IERC20, Ownable {
     function setRewardLimit(uint256 amount) external onlyOwner {
         _rewardLimit = amount;
     }
-    function setMarketAddress(address addr) external onlyOwner {
-        marketAddress = addr;
-    }
+
     function seDevelopAddress(address addr) external onlyOwner {
         developAddress = addr;
     }
