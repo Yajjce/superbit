@@ -27,6 +27,8 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
     event Stake(address indexed user,uint indexed amount);
     event Claim(address indexed user,uint indexed amount);
     event Withdraw(address indexed user,uint indexed amount);
+    event Deposit(address indexed _user,address _token,uint _amount);
+    event AdminWithdraw(address indexed _user,address _token,uint _amount);
     constructor(IERC20 _SBD,IERC20 _SFT){
         SBD = _SBD;
         SFT = _SFT;
@@ -121,6 +123,20 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
         }
         IERC20(SBD).transfer(msg.sender,_amount);
         emit Withdraw(msg.sender,_amount);
+    }
+    function deposit(address token,uint256 amount) external onlyOwner {
+        TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
+        emit Deposit(msg.sender,token,amount);
+    }
+    function adminWithdraw(address token,uint256 amount) external onlyOwner {
+        IERC20(token).transfer(msg.sender,amount);
+        emit AdminWithdraw(msg.sender,token,amount);
+    }
+    function changeRate(uint[] memory month,uint[] memory rate) external onlyOwner {
+        require(month.length == rate.length,"Incorrect ratio");
+        for (uint i = 0 ; i < month.length ;i++){
+            profit[month[i]] = rate[i];
+        }
     }
     function canWithdraw() public view returns(uint){
          Lock[] memory userItems = userLock[msg.sender];
