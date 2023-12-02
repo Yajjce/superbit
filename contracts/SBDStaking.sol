@@ -73,7 +73,9 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
         emit Stake(msg.sender,_amount,_date,profit[_date]);
     }
     function claim(uint _amount) external whenNotPaused nonReentrant{
-        require(_amount <= canClaim(),'Not enough rewards to claim');
+        uint transferAmount = _amount;
+        require(_amount <= canClaim(),"Not enough rewards to claim");
+        require(SFT.balanceOf(address(this)) >= _amount,"Not enough SFT to claim");
         Lock[] storage userItems = userLock[msg.sender];
         for(uint i = 0 ; i<userItems.length;i++){
             if(userItems[i].endBlock == 0){
@@ -89,30 +91,35 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
                     userItems[i].reward = 0;
                 }
             }else{
-                if(userItems[i].claim < userItems[i].reward){
-                    uint diffBlock;
-                    if(block.number>userItems[i].endBlock){
-                        diffBlock = userItems[i].endBlock.sub(userItems[i].lockBlock);
-                    }else{
-                        diffBlock=block.number.sub(userItems[i].lockBlock);
-                    }
-                    uint canReward = userItems[i].blockReward.mul(diffBlock);
+                
+                uint diffBlock;
+                if(block.number>userItems[i].endBlock){
+                    diffBlock = userItems[i].endBlock.sub(userItems[i].lockBlock);
+                    userItems[i].lockBlock =userItems[i].endBlock;
+                }else{
+                    diffBlock=block.number.sub(userItems[i].lockBlock);
                     userItems[i].lockBlock = block.number;
-                    if(canReward > _amount) {
-                        userItems[i].claim += _amount;
-                        _amount = _amount.sub(_amount);
+                }
+                uint canclaim = userItems[i].blockReward.mul(diffBlock);
+                userItems[i].claim += canclaim;
+                if(userItems[i].claim > 0 ){
+                    if(userItems[i].claim > _amount) {
+                    userItems[i].claim -= _amount;
+                    _amount = _amount.sub(_amount);
                     }else{
-                        userItems[i].claim += canReward;
-                        _amount = _amount.sub(canReward);
+                        _amount = _amount.sub(userItems[i].claim);
+                        userItems[i].claim = 0;
                     }
                 }
+                
             }
             if(_amount == 0){
                 break ;
             } 
         }
-        IERC20(SFT).transfer(msg.sender,_amount);
-        emit Claim(msg.sender,_amount);
+    
+        IERC20(SFT).transfer(msg.sender,transferAmount);
+        emit Claim(msg.sender,transferAmount);
     }
 
     function withdraw(uint _amount) external {
@@ -178,7 +185,8 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
        for(uint i = 0 ; i<userItems.length;i++){
           if(userItems[i].endBlock == 0){
             diffBlock = block.number.sub(userItems[i].lockBlock);
-            reward += diffBlock.mul(userItems[i].amount).mul(userItems[i].rate).div(ONE_YEAR_BLOCK).div(100);
+            uint leftReward= diffBlock.mul(userItems[i].amount).mul(userItems[i].rate).div(ONE_YEAR_BLOCK).div(100);
+            reward = reward + leftReward + userItems[i].reward;
           }else{
             if(userItems[i].claim < userItems[i].reward){
                 if(block.number>userItems[i].endBlock){
@@ -187,7 +195,7 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
                     diffBlock=block.number.sub(userItems[i].lockBlock);
                 }
                 uint canReward = userItems[i].blockReward.mul(diffBlock);
-                reward += canReward;
+                reward = canReward + reward + userItems[i].claim;
             }
           }
        }
