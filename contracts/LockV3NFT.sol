@@ -5,8 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ISwapRouter.sol";
-contract LockV3NFT is Pausable,ReentrancyGuard {
+contract LockV3NFT is Ownable,Pausable,ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.UintSet;
     IERC721 public superNode;
@@ -16,7 +17,7 @@ contract LockV3NFT is Pausable,ReentrancyGuard {
     IERC20 public USDT;
     ISwapRouter public router;
     EnumerableSet.AddressSet private nodeUsers;
-
+    uint256 private constant MAX = ~uint256(0);
     mapping(address =>uint) public weight;
     mapping(address =>uint) public totalWeight;
     mapping(address => mapping(address => uint)) public userTotalWeight;
@@ -24,7 +25,6 @@ contract LockV3NFT is Pausable,ReentrancyGuard {
     uint public startTime;
     uint public period;
     uint public bonusTime;
-    address[] public path;
     event Lock(address indexed user,address indexed node,uint amount,uint power);
     event Withdraw(address indexed user,address indexed node,uint amount);
     event Bonus(address indexed user,uint indexed power,uint amount);
@@ -50,13 +50,11 @@ contract LockV3NFT is Pausable,ReentrancyGuard {
         period = _period;
         bonusTime = _startTime;
         USDT = _USDT;
-        path[0] = address(_USDT);
-        path[1] = address(_fundToken);
-
+        IERC20(USDT).approve(address(router), MAX);
     }
     function lock(address node,uint tokenId) external whenNotPaused nonReentrant {
         require(weight[node] != 0, "Lock wrong NFT");
-        IERC721(node).safeTransferFrom(msg.sender,address(this),tokenId);
+        IERC721(node).transferFrom(msg.sender,address(this),tokenId);
         userLockIds[node][msg.sender].add(tokenId);
         totalWeight[node] += weight[node];
         userTotalWeight[node][msg.sender] += weight[node];
@@ -69,6 +67,10 @@ contract LockV3NFT is Pausable,ReentrancyGuard {
     function bonus() external whenNotPaused nonReentrant {
         require(block.timestamp > bonusTime + period,"Not in the dividend period");
         uint USDTBalance = USDT.balanceOf(address(this));
+        require(USDTBalance > 0 ,"Not enough USDT");
+        address[] memory path  = new address[](2);
+        path[0] = address(USDT);
+        path[1] = address(fundToken);
          router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             USDTBalance,
             0,
@@ -97,6 +99,9 @@ contract LockV3NFT is Pausable,ReentrancyGuard {
         totalWeight[node]-=weight[node];
         userLockIds[node][msg.sender].remove(tokenId);
         emit Withdraw(msg.sender,node,1);
+    }
+    function changePeriod(uint newPeriod) external onlyOwner {
+        period = newPeriod;
     }
     function getLockIds(address node,address user) public view returns(uint[] memory){
         return userLockIds[node][user].values();

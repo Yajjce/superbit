@@ -16,6 +16,8 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
         uint endBlock;
         uint reward;
         uint claim;
+        uint lockTime;
+        uint month;
     }
     uint constant ONE_MONTH = 2626560;
     uint constant intervalBlock = 3;
@@ -58,7 +60,9 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
             lockBlock:block.number,
             endBlock :endBlock,
             claim:0,
-            reward:reward
+            reward:reward,
+            lockTime:block.timestamp,
+            month:_date
         });
         userLock[msg.sender].push(detail);
         emit Stake(msg.sender,_amount);
@@ -166,5 +170,8 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
           }
        }
        return reward;
+    }
+    function getUserLockCount(address user) external view returns(uint){
+        return userLock[user].length;
     }
 }
