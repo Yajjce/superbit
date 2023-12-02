@@ -18,6 +18,7 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
         uint claim;
         uint lockTime;
         uint month;
+        uint blockReward;
     }
     uint constant ONE_MONTH = 2626560;
     uint constant intervalBlock = 3;
@@ -26,7 +27,7 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
     IERC20 public SFT;
     mapping(uint => uint) public  profit;
     mapping(address => Lock[]) public userLock;
-    event Stake(address indexed user,uint indexed amount);
+    event Stake(address indexed user,uint indexed amount,uint month,uint rate);
     event Claim(address indexed user,uint indexed amount);
     event Withdraw(address indexed user,uint indexed amount);
     event Deposit(address indexed _user,address _token,uint _amount);
@@ -46,13 +47,16 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
         uint endBlock;
         uint diffBlock;
         uint reward;
+        uint blockReward;
         if(_date == 0) {
             endBlock = 0;
             reward = 0;
+            blockReward = 0;
         }else{
             diffBlock = _date.mul(ONE_MONTH).div(intervalBlock);
             endBlock = block.number.add(diffBlock);
             reward = diffBlock.mul(_amount).mul(profit[_date]).div(ONE_YEAR_BLOCK).div(100);
+            blockReward = reward.div(diffBlock);
         }
         Lock memory detail = Lock({
             rate:profit[_date],
@@ -62,10 +66,11 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
             claim:0,
             reward:reward,
             lockTime:block.timestamp,
-            month:_date
+            month:_date,
+            blockReward:blockReward
         });
         userLock[msg.sender].push(detail);
-        emit Stake(msg.sender,_amount);
+        emit Stake(msg.sender,_amount,_date,profit[_date]);
     }
     function claim(uint _amount) external whenNotPaused nonReentrant{
         require(_amount <= canClaim(),'Not enough rewards to claim');
@@ -84,13 +89,22 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
                     userItems[i].reward = 0;
                 }
             }else{
-                uint canReward = userItems[i].reward.sub(userItems[i].claim);
-                if(canReward > _amount) {
-                    userItems[i].claim += _amount;
-                    _amount = _amount.sub(_amount);
-                }else{
-                    userItems[i].claim += canReward;
-                    _amount = _amount.sub(canReward);
+                if(userItems[i].claim < userItems[i].reward){
+                    uint diffBlock;
+                    if(block.number>userItems[i].endBlock){
+                        diffBlock = userItems[i].endBlock.sub(userItems[i].lockBlock);
+                    }else{
+                        diffBlock=block.number.sub(userItems[i].lockBlock);
+                    }
+                    uint canReward = userItems[i].blockReward.mul(diffBlock);
+                    userItems[i].lockBlock = block.number;
+                    if(canReward > _amount) {
+                        userItems[i].claim += _amount;
+                        _amount = _amount.sub(_amount);
+                    }else{
+                        userItems[i].claim += canReward;
+                        _amount = _amount.sub(canReward);
+                    }
                 }
             }
             if(_amount == 0){
@@ -160,13 +174,21 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
     function canClaim() public view  returns(uint){
        Lock[] memory userItems = userLock[msg.sender];
        uint reward = 0;
+       uint diffBlock;
        for(uint i = 0 ; i<userItems.length;i++){
-            uint diffBlock;
           if(userItems[i].endBlock == 0){
             diffBlock = block.number.sub(userItems[i].lockBlock);
             reward += diffBlock.mul(userItems[i].amount).mul(userItems[i].rate).div(ONE_YEAR_BLOCK).div(100);
           }else{
-            reward += reward.sub(userItems[i].claim);
+            if(userItems[i].claim < userItems[i].reward){
+                if(block.number>userItems[i].endBlock){
+                    diffBlock = userItems[i].endBlock.sub(userItems[i].lockBlock);
+                }else{
+                    diffBlock=block.number.sub(userItems[i].lockBlock);
+                }
+                uint canReward = userItems[i].blockReward.mul(diffBlock);
+                reward += canReward;
+            }
           }
        }
        return reward;
