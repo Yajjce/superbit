@@ -552,7 +552,7 @@ contract Token is IERC20, Ownable {
         _name = "SuperBit DAO Token";
         _symbol = "SBD";
         _decimals = 18;
-        uint256 total = 1800000000e18;
+        uint256 total = 2100000000e18;
         _tTotal = total;
 
         fundAddress = addressParams[0];
