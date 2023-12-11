@@ -124,6 +124,7 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
 
     function withdraw(uint _amount) external {
         require(_amount <= canWithdraw(),"Not enough tokens to claim");
+        uint transferAmount = _amount;
         Lock[] storage userItems = userLock[msg.sender];
         for(uint i = 0 ; i<userItems.length;i++){
             if(userItems[i].endBlock == 0){
@@ -146,8 +147,8 @@ contract SBDStaking is ReentrancyGuard,Ownable,Pausable{
                 }
             }
         }
-        IERC20(SBD).transfer(msg.sender,_amount);
-        emit Withdraw(msg.sender,_amount);
+        IERC20(SBD).transfer(msg.sender,transferAmount);
+        emit Withdraw(msg.sender,transferAmount);
     }
     function deposit(address token,uint256 amount) external onlyOwner {
         TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
