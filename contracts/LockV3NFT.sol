@@ -103,6 +103,18 @@ contract LockV3NFT is Ownable,Pausable,ReentrancyGuard {
     function changePeriod(uint newPeriod) external onlyOwner {
         period = newPeriod;
     }
+    function pause() external onlyOwner {
+        _pause();
+    }
+     function unpause() external onlyOwner {
+        _unpause();
+    }
+    function setWeight(address[] memory nodes,uint[] memory weights) external onlyOwner {
+        require(nodes.length == weights.length,"Node data error");
+        for(uint i = 0 ; i< nodes.length; i ++) {
+            weight[nodes[i]] = weights[i];
+        }
+    }
     function getLockIds(address node,address user) public view returns(uint[] memory){
         return userLockIds[node][user].values();
     }
